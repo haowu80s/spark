@@ -1,8 +1,6 @@
 # SparkALR
 
 
-![ALR](fastals.png)
-
 ## Compilation
 
 To compile and run, run the following from the Spark root directory. Compilation:
