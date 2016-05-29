@@ -1,5 +1,6 @@
 # SparkALR
 
+Alternating logistic regression for recommendation of binary data.
 
 ## Compilation
 
