@@ -37,23 +37,23 @@ import scala.util._
  */
 object SparkALR {
   // Number of movies
-  val M = 100
+  val M = 10
   // Number of users
-  val U = 2000
+  val U = 200
   // Number of features
   val F = 4
   // Number of iterations
-  val ITERATIONS = 5
+  val ITERATIONS = 100
   // Number of regression iterations
-  val REGMAXITER = 8
+  val REGMAXITER = 100
   // Regularization parameter
-  val REGP = 0.01
+  val REGP = 1e-6
   // Elastic-net parameter
   val ENET = 0.00
   // Number of partitions for data (set to number of machines in cluster)
-  val NUMPARTITIONS = 8
+  val NUMPARTITIONS = 1
   // File name to read data
-  val fileName = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/testData_2000_100_4.csv"
+  val fileName = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/testData_200_10_4.csv"
   val outputDir = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/"
 
   // scala context that is visible to all in SparkALR
@@ -61,7 +61,7 @@ object SparkALR {
   val sc = new SparkContext(sparkConf)
   val sqlContext = new SQLContext(sc)
 
-  private def formSuffStat(um_raw: RDD[((Long, Long), (Double, Int))], link: String) :
+  private def formSuffStat(data: RDD[((Long, Long), (Double, Int))], link: String) :
     RDD[(Long, HashMap[Long,(Double, Double)])] = link match {
     // RDD[(u, HashMap[m,(t, n)])]
     case "logistic" => val initialMap = HashMap.empty[Long, (Double, Double)]
@@ -69,12 +69,8 @@ object SparkALR {
                                        v: (Long, (Double, Double))) => s+= (v._1 -> v._2)
                        val mergePartitionMap = (p1: HashMap[Long, (Double, Double)],
                                                 p2: HashMap[Long, (Double, Double)]) => p1 ++= p2
-                       um_raw.reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2)).
-                              flatMap(v => Seq((v._1, (1.0, v._2._1)),
-                                               (v._1, (0.0, v._2._2 - v._2._1)))).
-                              filter(v => v._2._2 > 0.0).
-                              map(v => (v._1._1, (v._1._2, v._2))).
-                              aggregateByKey(initialMap)(addToMap, mergePartitionMap)
+    data.reduceByKey((a, b) => (a._1 + b._1, a._2 + b._2)).mapValues(v => (v._1, v._2-v._1)).
+      map(v => (v._1._1, (v._1._2, v._2))).aggregateByKey(initialMap)(addToMap, mergePartitionMap)
   }
 
   private def makeTrainDF_u(m_id: Long,
@@ -87,22 +83,20 @@ object SparkALR {
           StructField("weight", DoubleType, true) ::
           StructField("features", new VectorUDT, true) :: Nil)
     val um_us_im = um_us.filter(v => v._2._1.contains(m_id)).
-                       mapValues(v => (v._1(m_id), v._2)).
-                       mapValues(v => Row(v._1._1, v._1._2, v._2)).values
+      mapValues(v => (v._1(m_id), v._2)).
+      flatMap(v => Seq((1.0, v._2._1._1, v._2._2), (0.0, v._2._1._2, v._2._2))).
+      map(v => Row(v._1, v._2, v._3))
     sqlContext.createDataFrame(um_us_im, schema)
   }
 
   private def update_us(lr: LogisticRegression, data_u: HashMap[Long,(Double, Double)], ms: Array[Vector]) : Vector = {
     val mu_features = data_u.keySet.toArray.map(v => v.toInt -1) collect ms
-    val u_instance = data_u.values.toArray.zipWithIndex.map(v => (v._1._1, v._1._2, mu_features(v._2)))
+    val u_instance = data_u.values.toArray.zipWithIndex.flatMap(v => Seq((1.0, v._1._1, mu_features(v._2)), (0.0, v._1._2, mu_features(v._2))))
     lr.localTrain(u_instance).coefficients.toDense
   }
 
   def main(args: Array[String]) {
     sc.setLogLevel("WARN")
-
-    println("args[] = \n")
-    args.foreach(println)
 
     printf("Running with M=%d, U=%d, rank=%d, iters=(%d, %d), reg=(%f, %f)\n",
       M, U, F, ITERATIONS, REGMAXITER, REGP, ENET)
@@ -131,13 +125,14 @@ object SparkALR {
                     .setElasticNetParam(ENET)
                     .setFitIntercept(false)
                     .setStandardization(false)
-                    .setWeightCol("weight")
+
     val lr_m = new LogisticRegression()
                     .setMaxIter(REGMAXITER)
                     .setRegParam(REGP)
                     .setElasticNetParam(ENET)
-                    .setFitIntercept(true)
+                    .setFitIntercept(false)
                     .setStandardization(false)
+                    .setWeightCol("weight")
 
     for (iter <- 1 to ITERATIONS) {
       println("Iteration " + iter + ":")
@@ -149,7 +144,7 @@ object SparkALR {
       msb = sc.broadcast(ms)
 
       // map the local trainer with data
-      val us = um_data.mapValues(v => update_us(lr_m, v, msb.value))
+      val us = um_data.mapValues(v => update_us(lr_u, v, msb.value))
 
       // *** Update ms *** //
       println("Update ms")
@@ -158,7 +153,7 @@ object SparkALR {
       val um_us = um_data.join(us)
       //  loop over entries of ms
       for( m_id <- 1 to M ){
-        ms(m_id-1) = lr_u.fit(makeTrainDF_u(m_id, um_us)).coefficients.toDense
+        ms(m_id-1) = lr_m.fit(makeTrainDF_u(m_id, um_us)).coefficients.toDense
       }
 
     }
