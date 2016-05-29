@@ -1,18 +1,20 @@
 # SparkALR
 
+Alternating logistic regression for recommendation based on binary data.
 
 ## Compilation
 
-To compile and run, run the following from the Spark root directory. Compilation:
+To compile and run, run the following from the Spark root directory. 
+
+Compilation:
 ```
 sbt/sbt assembly
 ```
 To run with 4GB of ram:
 ```
-./bin/spark-submit --class org.apache.spark.mllib.examples.SparkALR  \
-  ./examples/target/scala-2.10/spark-examples-1.1.0-SNAPSHOT-hadoop1.0.4.jar \
-  --executor-memory 4G \
-  --driver-memory 4G
+./bin/spark-submit --class org.apache.spark.ml.examples.SparkALR \
+    ./examples/target/scala-2.10/spark-examples-1.6.2-SNAPSHOT-hadoop2.2.0.jar \
+    --executor-memory 4G  --driver-memory 4G
 ```
 
 # ALR
