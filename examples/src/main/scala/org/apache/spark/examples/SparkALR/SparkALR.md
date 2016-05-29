@@ -4,7 +4,9 @@ Alternating logistic regression for recommendation based on binary data.
 
 ## Compilation
 
-To compile and run, run the following from the Spark root directory. Compilation:
+To compile and run, run the following from the Spark root directory. 
+
+Compilation:
 ```
 sbt/sbt assembly
 ```
