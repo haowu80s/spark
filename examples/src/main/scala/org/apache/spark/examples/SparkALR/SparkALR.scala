@@ -36,24 +36,24 @@ import scala.util._
  * SparkALR for Spark
  */
 object SparkALR {
-  // Number of movies
-  val M = 10
   // Number of users
-  val U = 200
+  val U = 2000
+  // Number of movies
+  val M = 5
   // Number of features
   val F = 4
   // Number of iterations
-  val ITERATIONS = 100
+  val ITERATIONS = 50
   // Number of regression iterations
-  val REGMAXITER = 100
+  val REGMAXITER = 20
   // Regularization parameter
-  val REGP = 1e-6
+  val REGP = 5e-1
   // Elastic-net parameter
   val ENET = 0.00
   // Number of partitions for data (set to number of machines in cluster)
-  val NUMPARTITIONS = 1
+  val NUMPARTITIONS = 4
   // File name to read data
-  val fileName = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/testData_200_10_4.csv"
+  val fileName = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/testData_2000_5_4.csv"
   val outputDir = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/"
 
   // scala context that is visible to all in SparkALR
@@ -111,13 +111,14 @@ object SparkALR {
 
     // *** row index user features
     //  RDD[(Long, Vector)]
-    val us = um_data.mapValues(v => Vectors.dense(Array.fill(F)(math.random-0.5)))
+    var us = um_data.mapValues(v => Vectors.dense(Array.fill(F)(math.random-0.5)))
 
     // *** column index movie features
     //  Array[Vector]
     var ms = Array.fill(M)(Vectors.dense(Array.fill(F)(math.random-0.5)))
     var msb = sc.broadcast(ms)
 
+    var um_us = um_data.join(us)
     // *** LogisticRegression models for both distributed and local calculation
     val lr_u = new LogisticRegression()
                     .setMaxIter(REGMAXITER)
@@ -137,6 +138,16 @@ object SparkALR {
     for (iter <- 1 to ITERATIONS) {
       println("Iteration " + iter + ":")
 
+      // *** Update ms *** //
+      println("Update ms")
+
+      //  join data with us
+      um_us = um_data.join(us)
+      //  loop over entries of ms
+      for( m_id <- 1 to M ){
+        ms(m_id-1) = lr_m.fit(makeTrainDF_u(m_id, um_us)).coefficients.toDense
+      }
+
       // *** Update us *** //
       println("Update us")
 
@@ -144,17 +155,7 @@ object SparkALR {
       msb = sc.broadcast(ms)
 
       // map the local trainer with data
-      val us = um_data.mapValues(v => update_us(lr_u, v, msb.value))
-
-      // *** Update ms *** //
-      println("Update ms")
-
-      //  join data with us
-      val um_us = um_data.join(us)
-      //  loop over entries of ms
-      for( m_id <- 1 to M ){
-        ms(m_id-1) = lr_m.fit(makeTrainDF_u(m_id, um_us)).coefficients.toDense
-      }
+      us = um_data.mapValues(v => update_us(lr_u, v, msb.value))
 
     }
     // write ouput
