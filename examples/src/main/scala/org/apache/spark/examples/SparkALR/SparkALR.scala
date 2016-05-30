@@ -47,14 +47,14 @@ object SparkALR {
   // Number of regression iterations
   val REGMAXITER = 20
   // Regularization parameter
-  val REGP = 5e-1
+  val REGP = 1e-4
   // Elastic-net parameter
   val ENET = 0.00
   // Number of partitions for data (set to number of machines in cluster)
   val NUMPARTITIONS = 4
   // File name to read data
-  val fileName = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/testData_2000_5_4.csv"
-  val outputDir = "/Users/wuhao/GoogleDrive/Course/CME/CME323/Project/"
+  val fileName = "data/mllib/SparkALR.data.csv"
+  val outputDir = "./"
 
   // scala context that is visible to all in SparkALR
   val sparkConf = new SparkConf().setAppName("SparkALR")
