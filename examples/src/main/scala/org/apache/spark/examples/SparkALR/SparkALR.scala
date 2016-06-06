@@ -37,15 +37,15 @@ import scala.util._
  */
 object SparkALR {
   // Number of users
-  val U = 2000
+  val U = 5000
   // Number of movies
-  val M = 5
+  val M = 100
   // Number of features
-  val F = 4
+  val F = 5
   // Number of iterations
-  val ITERATIONS = 50
+  val ITERATIONS = 5
   // Number of regression iterations
-  val REGMAXITER = 20
+  val REGMAXITER = 2
   // Regularization parameter
   val REGP = 1e-4
   // Elastic-net parameter
@@ -53,7 +53,7 @@ object SparkALR {
   // Number of partitions for data (set to number of machines in cluster)
   val NUMPARTITIONS = 4
   // File name to read data
-  val fileName = "data/mllib/SparkALR.data.csv"
+  val fileName = "data/mllib/SparkALR.data.nu5000_nm100_nl10_k2_N10000.csv"
   val outputDir = "./"
 
   // scala context that is visible to all in SparkALR
@@ -101,6 +101,8 @@ object SparkALR {
     printf("Running with M=%d, U=%d, rank=%d, iters=(%d, %d), reg=(%f, %f)\n",
       M, U, F, ITERATIONS, REGMAXITER, REGP, ENET)
 
+    printf("Reading file from %s \n.", fileName)
+    val t0 = System.nanoTime()
     // Create data in the form of RDD[((Long, Long), (Double, Int))]
     val data = sc.textFile(fileName).map(_.split(",")).
                 map(v => ((v(0).toLong, v(1).toLong), (v(2).toDouble, 1)))
@@ -135,6 +137,7 @@ object SparkALR {
                     .setStandardization(false)
                     .setWeightCol("weight")
 
+    val t1 = System.nanoTime()
     for (iter <- 1 to ITERATIONS) {
       println("Iteration " + iter + ":")
 
@@ -158,6 +161,8 @@ object SparkALR {
       us = um_data.mapValues(v => update_us(lr_u, v, msb.value))
 
     }
+    val t2 = System.nanoTime()
+    println("t1 - t0: " + (t1 - t0)/1.0e9 + "sec", ", t2 - t1:" + (t2 - t1)/ITERATIONS/1.0e9 + "sec")
     // write ouput
     us.coalesce(1,true).saveAsTextFile(outputDir + "us.csv")
     sc.parallelize(ms).coalesce(1,true).saveAsTextFile(outputDir + "ms.csv")
