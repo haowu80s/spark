@@ -15,6 +15,7 @@ To run with 4GB of ram:
         --executor-memory 4G  --driver-memory 4G
     
 ## Implementations
+Detailed information can be found [here](./examples/src/main/scala/org/apache/spark/examples/SparkALR/).
 
 All the implementations are in the SparkALR.scala except the localTrain method for LogisticRegression() which is in LogisiticRegression.scala.
 
