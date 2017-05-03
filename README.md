@@ -1,6 +1,6 @@
 # SparkALR
 
-Alternating logistic regression for collaborative filtering for the prediction of occurance probability given binary observations (e.g. click-though rate).
+Alternating logistic regression is a collaborative filtering method for the prediction of occurance probability given binary observations (e.g. click-though rate).
 
 ## Compilation
 To compile:
